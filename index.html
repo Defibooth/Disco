@@ -493,7 +493,24 @@
     // Nombre maximum de défis par session, puis message QR code
     const MAX_DEFIS = 5;
     const MESSAGE_FIN = "Flash le QR code pour continuer";
-    let tires = 0;
+    // Le compteur est mémorisé sur le téléphone : rafraîchir la page ne le remet pas à zéro.
+    // Seul le lien du QR code (adresse de la page suivie de ?suite ou #suite) donne 5 nouveaux défis.
+    const CLE_COMPTEUR = 'defis-disco-compteur-v1';
+    function lireCompteur() {
+      try { const n = parseInt(localStorage.getItem(CLE_COMPTEUR), 10); return Number.isInteger(n) && n > 0 ? n : 0; } catch (e) { return 0; }
+    }
+    function sauverCompteur() {
+      try { localStorage.setItem(CLE_COMPTEUR, String(tires)); } catch (e) {}
+    }
+    let tires = lireCompteur();
+    (function () {
+      const viaQR = /(^|[?&])suite(=|&|$)/.test(location.search.slice(1)) || location.hash === '#suite';
+      if (!viaQR) return;
+      tires = 0;
+      sauverCompteur();
+      // On efface ?suite de l'adresse, sinon un simple rafraîchissement redonnerait des défis
+      try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    })();
 
     const card = document.getElementById('card');
     const btn = document.getElementById('actionBtn');
@@ -536,6 +553,7 @@
         // Le vrai défi est pioché dans la pioche mélangée
         card.textContent = piocherDefi();
         tires++;
+        sauverCompteur();
         btn.textContent = "Recommencer";
         btn.classList.remove('running');
         card.classList.add('stopped');
@@ -557,6 +575,14 @@
         card.classList.remove('stopped', 'placeholder');
         intervalId = setInterval(defilement, 60);
       }
+    }
+
+    // Si la limite est déjà atteinte à l'ouverture de la page, on affiche directement le message
+    if (tires >= MAX_DEFIS) {
+      card.textContent = MESSAGE_FIN;
+      card.classList.remove('stopped', 'placeholder');
+      card.classList.add('limit');
+      btn.disabled = true;
     }
   </script>
 
